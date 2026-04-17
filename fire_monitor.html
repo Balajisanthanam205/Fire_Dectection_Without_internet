@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fire Detection Monitor</title>
+<style>
+  :root {
+    --bg:        #0d0d14;
+    --surface:   #13131f;
+    --card:      #1a1a2e;
+    --border:    #2a2a40;
+    --text:      #e8e8f0;
+    --muted:     #7070a0;
+    --green:     #22c55e;
+    --yellow:    #eab308;
+    --red:       #ef4444;
+    --blue:      #3b82f6;
+    --purple:    #8b5cf6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+  }
+  h1 { font-size: 20px; font-weight: 600; }
+  .subtitle { font-size: 12px; color: var(--muted); }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+  }
+  .dot.live { background: var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+  }
+
+  /* ── Danger Banner ── */
+  #danger-banner {
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border: 1px solid;
+    transition: all 0.4s ease;
+  }
+  .banner-icon { font-size: 32px; flex-shrink: 0; }
+  .banner-label { font-size: 13px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 4px; }
+  .banner-title { font-size: 22px; font-weight: 700; }
+  .banner-desc  { font-size: 13px; margin-top: 4px; opacity: 0.8; }
+
+  .level-0 { background: rgba(34,197,94,0.08);  border-color: rgba(34,197,94,0.3);  color: #86efac; }
+  .level-1 { background: rgba(234,179,8,0.08);  border-color: rgba(234,179,8,0.3);  color: #fef08a; }
+  .level-2 { background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.3);  color: #fca5a5; }
+  .level-3 { background: rgba(239,68,68,0.15);  border-color: #ef4444;              color: #ff6b6b; animation: blink-bg 0.6s infinite; }
+  @keyframes blink-bg {
+    0%,100% { background: rgba(239,68,68,0.15); }
+    50%      { background: rgba(239,68,68,0.28); }
+  }
+
+  /* ── LED Indicators ── */
+  .led-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .led-card {
+    flex: 1; min-width: 120px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .led-bulb {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+  .led-bulb.green  { background: #166534; border: 2px solid #166534; }
+  .led-bulb.yellow { background: #713f12; border: 2px solid #713f12; }
+  .led-bulb.red    { background: #7f1d1d; border: 2px solid #7f1d1d; }
+  .led-bulb.green.on  { background: var(--green);  border-color: var(--green);  box-shadow: 0 0 16px var(--green); }
+  .led-bulb.yellow.on { background: var(--yellow); border-color: var(--yellow); box-shadow: 0 0 16px var(--yellow); }
+  .led-bulb.red.on    { background: var(--red);    border-color: var(--red);    box-shadow: 0 0 16px var(--red); }
+  .led-name  { font-size: 13px; font-weight: 500; }
+  .led-state { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .buzzer-card {
+    flex: 1; min-width: 120px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .buzzer-icon { font-size: 24px; transition: all 0.3s; filter: grayscale(1); }
+  .buzzer-icon.on { filter: none; animation: shake 0.3s infinite; }
+  @keyframes shake {
+    0%,100% { transform: rotate(0deg); }
+    25%     { transform: rotate(-6deg); }
+    75%     { transform: rotate(6deg); }
+  }
+
+  /* ── Sensor Grid ── */
+  .sensor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .sensor-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    transition: border-color 0.3s;
+  }
+  .sensor-card.warn { border-color: rgba(234,179,8,0.5); }
+  .sensor-card.danger { border-color: rgba(239,68,68,0.6); }
+
+  .sensor-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .sensor-value { font-size: 32px; font-weight: 700; line-height: 1; }
+  .sensor-unit  { font-size: 14px; font-weight: 400; color: var(--muted); margin-left: 3px; }
+  .sensor-bar   { height: 4px; background: var(--border); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+  .sensor-fill  { height: 100%; border-radius: 2px; transition: width 0.6s ease, background 0.3s; }
+
+  /* ── Table ── */
+  .table-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .table-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .table-title { font-size: 15px; font-weight: 600; }
+  .table-meta  { font-size: 12px; color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    padding: 10px 16px;
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--text);
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-0 { background: rgba(34,197,94,0.15);  color: var(--green); }
+  .badge-1 { background: rgba(234,179,8,0.15);  color: var(--yellow); }
+  .badge-2 { background: rgba(239,68,68,0.15);  color: var(--red); }
+  .badge-3 { background: rgba(239,68,68,0.3);   color: #ff4444; border: 1px solid #ef4444; }
+
+  .rssi-good { color: var(--green); }
+  .rssi-ok   { color: var(--yellow); }
+  .rssi-bad  { color: var(--red); }
+
+  /* ── Refresh ── */
+  .refresh-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .section-title { font-size: 15px; font-weight: 600; }
+  .btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn:hover { background: var(--card); }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .btn-primary:hover { background: #2563eb; }
+
+  .last-update { font-size: 12px; color: var(--muted); }
+  .error-msg { color: var(--red); font-size: 13px; padding: 12px 20px; }
+
+  /* ── Threshold Info ── */
+  .threshold-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .threshold-card {
+    border-radius: 12px;
+    border: 1px solid;
+    padding: 14px 16px;
+  }
+  .threshold-card.l0 { background: rgba(34,197,94,0.06);  border-color: rgba(34,197,94,0.25); }
+  .threshold-card.l1 { background: rgba(234,179,8,0.06);  border-color: rgba(234,179,8,0.25); }
+  .threshold-card.l2 { background: rgba(239,68,68,0.06);  border-color: rgba(239,68,68,0.25); }
+  .threshold-card.l3 { background: rgba(239,68,68,0.1);   border-color: rgba(239,68,68,0.4); }
+  .threshold-level { font-size: 12px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 6px; }
+  .threshold-card.l0 .threshold-level { color: var(--green); }
+  .threshold-card.l1 .threshold-level { color: var(--yellow); }
+  .threshold-card.l2 .threshold-level { color: var(--red); }
+  .threshold-card.l3 .threshold-level { color: #ff4444; }
+  .threshold-card ul { list-style: none; font-size: 12px; color: var(--muted); line-height: 1.8; }
+  .threshold-card ul li::before { content: "→ "; }
+
+  /* ── Misc ── */
+  .no-data { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 600px) {
+    body { padding: 12px; }
+    .sensor-value { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🔥</div>
+    <div>
+      <div><h1>Fire Detection Monitor</h1></div>
+      <div class="subtitle">LoRa-based offline sensor network</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <div class="status-pill">
+      <div class="dot" id="live-dot"></div>
+      <span id="live-label">Connecting...</span>
+    </div>
+  </div>
+</header>
+
+<!-- Danger Banner -->
+<div id="danger-banner" class="level-0">
+  <div class="banner-icon" id="banner-icon">✅</div>
+  <div>
+    <div class="banner-label">Current Status</div>
+    <div class="banner-title" id="banner-title">Loading...</div>
+    <div class="banner-desc"  id="banner-desc">Fetching latest data...</div>
+  </div>
+</div>
+
+<!-- LED + Buzzer Row -->
+<div class="led-row">
+  <div class="led-card">
+    <div class="led-bulb green" id="led-green"></div>
+    <div>
+      <div class="led-name">Green LED</div>
+      <div class="led-state" id="state-green">OFF</div>
+    </div>
+  </div>
+  <div class="led-card">
+    <div class="led-bulb yellow" id="led-yellow"></div>
+    <div>
+      <div class="led-name">Yellow LED</div>
+      <div class="led-state" id="state-yellow">OFF</div>
+    </div>
+  </div>
+  <div class="led-card">
+    <div class="led-bulb red" id="led-red"></div>
+    <div>
+      <div class="led-name">Red LED</div>
+      <div class="led-state" id="state-red">OFF</div>
+    </div>
+  </div>
+  <div class="buzzer-card">
+    <div class="buzzer-icon" id="buzzer-icon">🔔</div>
+    <div>
+      <div class="led-name">Buzzer</div>
+      <div class="led-state" id="state-buzzer">SILENT</div>
+    </div>
+  </div>
+</div>
+
+<!-- Sensor Readings -->
+<div class="sensor-grid" id="sensor-grid">
+  <div class="sensor-card" id="card-temp">
+    <div class="sensor-label">Temperature</div>
+    <div class="sensor-value">—<span class="sensor-unit">°C</span></div>
+    <div class="sensor-bar"><div class="sensor-fill" style="width:0%;background:var(--blue)"></div></div>
+  </div>
+  <div class="sensor-card" id="card-hum">
+    <div class="sensor-label">Humidity</div>
+    <div class="sensor-value">—<span class="sensor-unit">%</span></div>
+    <div class="sensor-bar"><div class="sensor-fill" style="width:0%;background:var(--blue)"></div></div>
+  </div>
+  <div class="sensor-card" id="card-gas">
+    <div class="sensor-label">Gas / Smoke (MQ2)</div>
+    <div class="sensor-value">—<span class="sensor-unit">%</span></div>
+    <div class="sensor-bar"><div class="sensor-fill" style="width:0%;background:var(--green)"></div></div>
+  </div>
+  <div class="sensor-card" id="card-flame">
+    <div class="sensor-label">Flame Intensity</div>
+    <div class="sensor-value">—<span class="sensor-unit">%</span></div>
+    <div class="sensor-bar"><div class="sensor-fill" style="width:0%;background:var(--green)"></div></div>
+  </div>
+  <div class="sensor-card" id="card-soil">
+    <div class="sensor-label">Soil Moisture</div>
+    <div class="sensor-value">—<span class="sensor-unit">%</span></div>
+    <div class="sensor-bar"><div class="sensor-fill" style="width:0%;background:var(--blue)"></div></div>
+  </div>
+  <div class="sensor-card" id="card-rssi">
+    <div class="sensor-label">LoRa Signal (RSSI)</div>
+    <div class="sensor-value">—<span class="sensor-unit">dBm</span></div>
+    <div class="sensor-bar"><div class="sensor-fill" style="width:0%;background:var(--purple)"></div></div>
+  </div>
+</div>
+
+<!-- Threshold Reference -->
+<div class="refresh-row">
+  <div class="section-title">Alert Thresholds</div>
+</div>
+<div class="threshold-grid">
+  <div class="threshold-card l0">
+    <div class="threshold-level">🟢 Level 0 — Safe</div>
+    <ul>
+      <li>Temp &lt; 38°C</li>
+      <li>Flame &lt; 15%</li>
+      <li>Gas &lt; 25%</li>
+      <li>Green LED ON, silent</li>
+    </ul>
+  </div>
+  <div class="threshold-card l1">
+    <div class="threshold-level">🟡 Level 1 — Caution</div>
+    <ul>
+      <li>Temp 38–45°C, OR</li>
+      <li>Flame 15–35%, OR</li>
+      <li>Gas 25–40%</li>
+      <li>Yellow LED ON, silent</li>
+    </ul>
+  </div>
+  <div class="threshold-card l2">
+    <div class="threshold-level">🔴 Level 2 — Warning</div>
+    <ul>
+      <li>Temp 45–55°C, OR</li>
+      <li>Flame 35–60%, OR</li>
+      <li>Gas 40–60%</li>
+      <li>Red LED ON + 3 beeps</li>
+    </ul>
+  </div>
+  <div class="threshold-card l3">
+    <div class="threshold-level">🚨 Level 3 — Fire!</div>
+    <ul>
+      <li>Temp ≥ 55°C, OR</li>
+      <li>Flame ≥ 60%, OR</li>
+      <li>Gas ≥ 60%</li>
+      <li>All LEDs + rapid alarm</li>
+    </ul>
+  </div>
+</div>
+
+<!-- History Table -->
+<div class="refresh-row">
+  <div class="section-title">Recent Readings</div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span class="last-update" id="last-update">—</span>
+    <button class="btn btn-primary" onclick="fetchData()">↻ Refresh</button>
+  </div>
+</div>
+<div class="table-section">
+  <div class="table-header">
+    <span class="table-title">Last 20 packets from LoRa node</span>
+    <span class="table-meta" id="table-meta">—</span>
+  </div>
+  <div id="table-container">
+    <div class="no-data"><span class="spinner"></span> Loading...</div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL    = 'https://xpvxfwxyhfsxvxbwhxul.supabase.co';
+const SUPABASE_APIKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhwdnhmd3h5aGZzeHZ4YndoeHVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MzI4NzIsImV4cCI6MjA5MDEwODg3Mn0.7zTbeNlPgoHVHo7sNCeeDv031-GGdRlBB-Y3HD9xXNs';
+
+const LEVELS = [
+  { cls:'level-0', icon:'✅', title:'All Clear — Safe', desc:'All sensors within normal range. No action needed.', ledG:true,  ledY:false, ledR:false, buzz:false },
+  { cls:'level-1', icon:'⚠️', title:'Caution — Investigate', desc:'One or more sensors slightly elevated. Check the area.', ledG:false, ledY:true,  ledR:false, buzz:false },
+  { cls:'level-2', icon:'🔴', title:'Warning — Possible Fire', desc:'Multiple sensors elevated. Evacuate and investigate immediately.', ledG:false, ledY:false, ledR:true,  buzz:true  },
+  { cls:'level-3', icon:'🚨', title:'FIRE DETECTED!', desc:'Critical sensor readings. Evacuate now and call emergency services!', ledG:true,  ledY:true,  ledR:true,  buzz:true  },
+];
+
+function setLED(id, stateId, on, label) {
+  document.getElementById(id).classList.toggle('on', on);
+  document.getElementById(stateId).textContent = on ? label : 'OFF';
+}
+
+function updateUI(row) {
+  const level  = Math.min(3, Math.max(0, row.danger_level));
+  const L      = LEVELS[level];
+
+  // Banner
+  const banner = document.getElementById('danger-banner');
+  banner.className = L.cls;
+  document.getElementById('banner-icon').textContent  = L.icon;
+  document.getElementById('banner-title').textContent = L.title;
+  document.getElementById('banner-desc').textContent  = L.desc;
+
+  // LEDs + buzzer
+  setLED('led-green',  'state-green',  L.ledG, 'ON — Safe');
+  setLED('led-yellow', 'state-yellow', L.ledY, 'ON — Caution');
+  setLED('led-red',    'state-red',    L.ledR, 'ON — Warning');
+  const buz = document.getElementById('buzzer-icon');
+  buz.classList.toggle('on', L.buzz);
+  document.getElementById('state-buzzer').textContent = L.buzz ? 'ALARMING!' : 'SILENT';
+
+  // Temperature card
+  const temp = parseFloat(row.temperature);
+  const tempOk = temp > 5 && temp < 60;
+  updateCard('card-temp',
+    tempOk ? temp.toFixed(1) : '?',
+    '°C',
+    tempOk ? Math.min(100, (temp / 60) * 100) : 0,
+    temp >= 55 ? '#ef4444' : temp >= 38 ? '#eab308' : '#3b82f6',
+    !tempOk ? 'warn' : temp >= 45 ? 'danger' : ''
+  );
+
+  // Humidity
+  const hum = parseFloat(row.humidity);
+  updateCard('card-hum', hum.toFixed(1), '%', hum, '#3b82f6', '');
+
+  // Gas
+  const gas = row.gas_level;
+  updateCard('card-gas', gas, '%', gas,
+    gas >= 60 ? '#ef4444' : gas >= 25 ? '#eab308' : '#22c55e',
+    gas >= 60 ? 'danger' : gas >= 25 ? 'warn' : ''
+  );
+
+  // Flame
+  const fl = row.flame_level;
+  updateCard('card-flame', fl, '%', fl,
+    fl >= 60 ? '#ef4444' : fl >= 15 ? '#eab308' : '#22c55e',
+    fl >= 60 ? 'danger' : fl >= 15 ? 'warn' : ''
+  );
+
+  // Soil
+  const soil = row.soil_moisture;
+  const soilLabel = soil < 0 ? '—' : soil;
+  const soilPct   = soil < 0 ? 0 : soil;
+  updateCard('card-soil', soilLabel, soil < 0 ? '' : '%', soilPct, '#3b82f6', '');
+
+  // RSSI
+  const rssi = row.rssi;
+  const rssiPct = Math.min(100, Math.max(0, ((rssi + 120) / 90) * 100));
+  updateCard('card-rssi', rssi, 'dBm', rssiPct,
+    rssi >= -70 ? '#22c55e' : rssi >= -90 ? '#eab308' : '#ef4444', '');
+}
+
+function updateCard(id, value, unit, pct, color, warnClass) {
+  const card = document.getElementById(id);
+  card.className = 'sensor-card' + (warnClass ? ' ' + warnClass : '');
+  card.querySelector('.sensor-value').innerHTML =
+    `${value}<span class="sensor-unit">${unit}</span>`;
+  const fill = card.querySelector('.sensor-fill');
+  fill.style.width  = pct + '%';
+  fill.style.background = color;
+}
+
+function rssiClass(rssi) {
+  if (rssi >= -70) return 'rssi-good';
+  if (rssi >= -90) return 'rssi-ok';
+  return 'rssi-bad';
+}
+
+function dangerBadge(level) {
+  const labels = ['Safe','Caution','Warning','FIRE!'];
+  return `<span class="badge badge-${level}">${labels[level] || level}</span>`;
+}
+
+function buildTable(rows) {
+  if (!rows || rows.length === 0) {
+    return '<div class="no-data">No data yet — waiting for ESP32 packets</div>';
+  }
+  const cols = ['Time','Pkt#','Temp','Humidity','Gas','Flame','Soil','Danger','RSSI'];
+  let html = `<div style="overflow-x:auto"><table>
+    <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+
+  rows.forEach(r => {
+    const dt  = new Date(r.created_at);
+    const ts  = dt.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const temp = parseFloat(r.temperature);
+    const tempDisplay = (temp < 2 || temp > 60)
+      ? `<span style="color:#ef4444">${temp.toFixed(1)}</span>`
+      : `${temp.toFixed(1)} °C`;
+
+    html += `<tr>
+      <td>${ts}</td>
+      <td style="color:var(--muted)">#${r.packet_id}</td>
+      <td>${tempDisplay}</td>
+      <td>${parseFloat(r.humidity).toFixed(1)} %</td>
+      <td>${r.gas_level} %</td>
+      <td>${r.flame_level} %</td>
+      <td>${r.soil_moisture < 0 ? '—' : r.soil_moisture + ' %'}</td>
+      <td>${dangerBadge(r.danger_level)}</td>
+      <td class="${rssiClass(r.rssi)}">${r.rssi} dBm</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  return html;
+}
+
+async function fetchData() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/sensor_readings?select=*&order=created_at.desc&limit=20`,
+      { headers: { 'apikey': SUPABASE_APIKEY, 'Authorization': `Bearer ${SUPABASE_APIKEY}` } }
+    );
+
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+
+    // Update live indicator
+    document.getElementById('live-dot').className   = 'dot live';
+    document.getElementById('live-label').textContent = 'Live';
+    document.getElementById('last-update').textContent =
+      'Last updated: ' + new Date().toLocaleTimeString();
+    document.getElementById('table-meta').textContent =
+      `${rows.length} rows`;
+
+    if (rows.length > 0) updateUI(rows[0]);
+
+    document.getElementById('table-container').innerHTML = buildTable(rows);
+
+  } catch (err) {
+    document.getElementById('live-dot').className    = 'dot';
+    document.getElementById('live-label').textContent = 'Error';
+    document.getElementById('table-container').innerHTML =
+      `<div class="error-msg">⚠ Failed to fetch: ${err.message}</div>`;
+    console.error(err);
+  }
+}
+
+// Initial fetch + auto-refresh every 5 seconds
+fetchData();
+setInterval(fetchData, 5000);
+</script>
+</body>
+</html>
